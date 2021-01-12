@@ -1,4 +1,4 @@
-# WebAssembly Interface Definition Language (WIDL) for Golang
+# WebAssembly Interface Definition Language (WIDL)
 
 WIDL is a schema format for describing [waPC](https://github.com/wapc) modules and used by the [CLI](https://github.com/wapc/cli) to generate code for the supported guest languages. It heavily resembles [GraphQL schema](https://graphql.org/learn/schema/) but with some variations to fit better in the WebAssembly ecosystem.
 
