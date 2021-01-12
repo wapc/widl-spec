@@ -9,5 +9,3 @@ WIDL is a schema format for describing [waPC](https://github.com/wapc) modules a
 * Support for maps
 * Operations are defined in a single interface instead of separating query and mutation operations
 * Removed the concepts that do not apply from GraphQL schema (e.g. Queries vs. Mutations, Field arguments, Variables, Fragments)
-
-Everything in this package was borrowed and retrofitted from the awesome [Golang GraphQL library](https://github.com/graphql-go/graphql).  We thank the 70+ contributors to this project! It has enabled us to provide a succinct interface definition language to our users with minimal effort.
