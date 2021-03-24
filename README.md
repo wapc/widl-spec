@@ -2,44 +2,23 @@
 
 ## What is WIDL?
 
-WIDL is an [interface definition language](https://en.wikipedia.org/wiki/Interface_description_language) for describing [waPC](https://github.com/wapc) modules. WIDL is also used by code generation tools to create binding code for any programming language supported by waPC. waPC and WIDL aim to streamline the bi-directional communication between a host program (custom application or browser) and one or more guest WebAssembly modules. The end result is a true polyglot ecosystem where several WebAssembly modules are dynamically loaded and communicate with each other using a simple programming model.
+WIDL is an [interface definition language](https://en.wikipedia.org/wiki/Interface_description_language) for describing [waPC](https://github.com/wapc) modules. WIDL is also used by code generation tools to create binding code for any programming language supported by waPC. waPC and WIDL aim to streamline the bidirectional communication between a host program (custom application or browser) and one or more guest WebAssembly modules. The end result is a true polyglot ecosystem where several WebAssembly modules are dynamically loaded and communicate with each other using a simple programming model.
 
-## Why WIDL? (and why not X?)
+## Why WIDL?
 
-Our goal was not to create "yet another IDL". In our WebAssembly journey, we considered several options and ran into issues where the technologies were not perfectly aligned:
+We built [waPC](https://github.com/wapc) so developers can pass arbitrary bytes to and from WebAssembly similar to request/reply in HTTP. But before we can build real-world applications using waPC, there needs to be a way to convey rich data consisting of maps, arrays, strings, booleans, and various levels of nested data. Currently, passing these high-level data structures agnostically between browsers, host applications and multi-language Wasm modules is not possible without a schema/IDL and serialization format. Existing tools target APIs and micro-service development or are language specific like [wasm-bindgen](https://github.com/rustwasm/wasm-bindgen) and [as-bind](https://github.com/torch2424/as-bind). We determined that a purpose-built IDL was needed to harness the power of WebAssembly.
 
-* JSON schema
-	* Verbose
-	* Lack of Wasm numeric types (i8-64, i8-64, f32, f64)
-	* Not compact enough
-* Protocol Buffers / gRPC
-	* No language support for AssemblyScript
-	* Generated code does not compile for TinyGo (but possible to post generation changes)
-	* Requires a .proto file to decode which could limit use cases
-* FlatBuffers / Cap'n Proto
-	* [Flatbuffers PR open for AssemblyScript support](https://github.com/google/flatbuffers/pull/6408)
-	* Not as simple to interact with as plain data classes/structures (nitpick)
-	* Complicated
+### Design goals
 
-It's important to note that the IDLs/schemas are usually associated with the serialization format. In some cases the IDL is viable but the format is to cumbersome to implement in all WebAssembly-supported languages or are primarily solving for compaction which is not as much of a concern in WebAssembly. The primary objective in Wasm is to copy data from one module to the host or another module as efficiently as possible.
-
-For a while we used [GraphQL schema](https://graphql.org/learn/schema/) and loved its simplicity. That said, expressing Wasm interfaces still had its friction. Finally, we decided create WIDL as a purpose-built IDL for WebAssembly inspired by the simplicity of GraphQL schema. Here is quick summary of how WIDL differs from GraphQL schema.
-
-* Built-in WebAssembly numeric types (i8-64, i8-64, f32, f64) - no scalars required
-* Scalars explicitly alias a known type
-* Functions can return `void` instead of returning `Boolean` as a workaround
-* Fields are required by default instead of optional and `?` is used after the field name to denote that it is optional
-* Support for maps
-* Operations are defined in a single interface or roles instead of rigid query and mutation operations
-* Removed the concepts that do not apply from GraphQL schema (e.g. Queries vs. Mutations, Field arguments, Variables, Fragments)
-
-### Design goal
-
-Some API specifications have become increasingly complex over time and their usage has declined as a result.  WIDL's design goal is **simplicity**. Simplicity is important in maintaining ongoing support for multiple WebAssembly languages and providing approachable tools for the developer community.
+* Succinct - Clearly described interfaces and hight-level data types
+* WebAssembly-first - Support all numeric types (i8-64, i8-64, f32, f64)
+* Polyglot - Support several widely used programming languages that target Wasm
+* Simplicity - Implement a minimal feature set so that it is easier to use and apply to multiple languages
+* Extensibility - Allow for developer extensions to satisfy application-specific requirements
 
 ### Thoughts on the future
 
-WebAssembly is a rapidly evolving ecosystem. In time, serialization formats are likely to better support polyglot Wasm. Currently, the WIDL code generator leverages [MessagePack](https://msgpack.org/index.html) as the serialization format. It strikes the right balance between performance and ease of use and is lightweight and easy to implement if a language does not already have a de facto MessagePack library. We have seen use cases requiring JSON and Protobuf also. [Interfaces types](https://hacks.mozilla.org/2019/08/webassembly-interface-types/) is also under development. Since the code generation tool was designed to be "pluggable", we see the serialization format eventually being pluggable and WIDL acting as an intermediate representation.
+WebAssembly is a rapidly evolving ecosystem. In time, serialization formats are likely to better support polyglot Wasm. Currently, the WIDL code generator leverages [MessagePack](https://msgpack.org/index.html) as the serialization format. It strikes the right balance between performance and ease of use and is lightweight and easy to implement if a language does not already have a de facto MessagePack library. We have seen use cases requiring JSON and Protobuf also. [Interfaces types](https://hacks.mozilla.org/2019/08/webassembly-interface-types/) are also under development. Since the code generation tool was designed to be "pluggable", we see the serialization format eventually being pluggable and WIDL acting as an intermediate representation.
 
 ## The WIDL specification
 
@@ -49,6 +28,12 @@ Declared at the top of the WIDL document, the `namespace` is used to identify an
 
 ```
 namespace "customers"
+```
+
+Including a version suffix is the recommended way for your application to support multiple versions.
+
+```
+namespace "customers.v1"
 ```
 
 ### Scalar Types
@@ -257,3 +242,32 @@ Multiple annotations can be attached to an element. All annotations have named a
 | `@length(5)` | `@length(value: 5)` | `value` is the default argument name. |
 
 The annotation examples above shows a validation scenario but annotations are not limited to this purpose. The developer has the freedom to extend the code generation tool to leverage annotations for their application's needs. In the `Customer` example, the developer could use these annotations to generate `validate` methods on each of the generated object types.
+
+## Why not other IDLs/formats?
+
+Our goal was not to create "yet another IDL". In our WebAssembly journey, we considered several options and ran into issues where the technologies were not perfectly aligned:
+
+* JSON schema
+	* Verbose
+	* Lack of Wasm numeric types (i8-64, i8-64, f32, f64)
+	* Not compact enough
+* Protocol Buffers / gRPC
+	* No language support for AssemblyScript
+	* Generated code does not compile for TinyGo (but possible to post generation changes)
+	* Requires a .proto file to decode which could limit use cases
+* FlatBuffers / Cap'n Proto
+	* [Flatbuffers PR open for AssemblyScript support](https://github.com/google/flatbuffers/pull/6408)
+	* Not as simple to interact with as plain data classes/structures (nitpick)
+	* Complicated
+
+It's important to note that the IDLs/schemas are usually associated with the serialization format. In some cases the IDL is viable but the format is to cumbersome to implement in all WebAssembly-supported languages or are primarily solving for compaction which is not as much of a concern in WebAssembly. The primary objective in Wasm is to copy data from one module to the host or another module as efficiently as possible.
+
+For a while we used [GraphQL schema](https://graphql.org/learn/schema/) and loved its simplicity. That said, expressing Wasm interfaces still had its friction. Finally, we decided create WIDL as a purpose-built IDL for WebAssembly inspired by the simplicity of GraphQL schema. Here is quick summary of how WIDL differs from GraphQL schema.
+
+* Built-in WebAssembly numeric types (i8-64, i8-64, f32, f64) - no scalars required
+* Scalars explicitly alias a known type
+* Functions can return `void` instead of returning `Boolean` as a workaround
+* Fields are required by default instead of optional and `?` is used after the field name to denote that it is optional
+* Support for maps
+* Operations are defined in a single interface or roles instead of rigid query and mutation operations
+* Removed the concepts that do not apply from GraphQL schema (e.g. Queries vs. Mutations, Field arguments, Variables, Fragments)
