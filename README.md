@@ -10,7 +10,7 @@ We built [waPC](https://github.com/wapc) so developers can pass arbitrary bytes 
 
 ### Design goals
 
-* Succinct - Clearly described interfaces and hight-level data types
+* Succinct - Clearly described interfaces and high-level data types
 * WebAssembly-first - Support all numeric types (i8-64, i8-64, f32, f64)
 * Polyglot - Support several widely used programming languages that target Wasm
 * Simplicity - Implement a minimal feature set so that it is easier to use and apply to multiple languages
@@ -64,6 +64,10 @@ WIDL also includes the following special types that are decoded into language-sp
 | `raw`      | a raw encoded value that can be decoded at a later point in the program. |
 | `value`    | a free form encoded value that encapsulates any of the above types.      |
 
+**Language support for `datetime`**
+
+Without [WASI](https://wasi.dev/), a WebAssembly module does not have access to the clock or system's timezone. This means the target language may not have a native Date, Time, Timezone, or Timestamp datatypes. In this case, the code generator will treat them as strings.
+
 ### Collections
 
 Types can be encapsulated in arrays and maps with enclosing syntax:
@@ -85,7 +89,7 @@ Interfaces define the operations available in a waPC module. They are useful for
 
 ```
 interface {
-  add(rhs: i64, lhs: i64): i64
+  add(addend1: i64, addend2: i64): i64
 }
 ```
 
@@ -95,15 +99,15 @@ Roles are conceptual groups of operations that allow the developer divide commun
 
 ```
 role Adder {
-  add(rhs: i64, lhs: i64): i64
+  add(addend1: i64, addend2: i64): i64
 }
 
 role Subtractor {
-  subtract(rhs: i64, lhs: i64): i64
+  subtract(minuend: i64, subtrahend: i64): i64
 }
 
 role Multiplier {
-  multiply(rhs: i64, lhs: i64): i64
+  multiply(factor1: i64, factor2: i64): i64
 }
 
 role Divider {
@@ -243,22 +247,99 @@ Multiple annotations can be attached to an element. All annotations have named a
 
 The annotation examples above shows a validation scenario but annotations are not limited to this purpose. The developer has the freedom to extend the code generation tool to leverage annotations for their application's needs. In the `Customer` example, the developer could use these annotations to generate `validate` methods on each of the generated object types.
 
+### Default values
+
+Fields can also specify default values when a type is initialized. This needs to be carefully considered in the code generation. Languages vary of how this would be implemented.
+
+```
+type PhoneNumber {
+  number: string
+  type: PhoneType = mobile
+}
+```
+
 ## Why not other IDLs/formats?
 
-Our goal was not to create "yet another IDL". In our WebAssembly journey, we considered several options and ran into issues where the technologies were not perfectly aligned:
+Our goal was not to create "yet another IDL". In our WebAssembly journey, we considered several options and ran into issues where the technologies were not perfectly aligned to our design goals:
 
-* JSON schema
-	* Verbose
-	* Lack of Wasm numeric types (i8-64, i8-64, f32, f64)
-	* Not compact enough
-* Protocol Buffers / gRPC
-	* No language support for AssemblyScript
-	* Generated code does not compile for TinyGo (but possible to post generation changes)
-	* Requires a .proto file to decode which could limit use cases
-* FlatBuffers / Cap'n Proto
-	* [Flatbuffers PR open for AssemblyScript support](https://github.com/google/flatbuffers/pull/6408)
-	* Not as simple to interact with as plain data classes/structures (nitpick)
-	* Complicated
+* Succinct - Clearly described interfaces and high-level data types
+* WebAssembly-first - Support all numeric types (i8-64, i8-64, f32, f64)
+* Polyglot - Support several widely used programming languages that target Wasm
+* Simplicity - Implement a minimal feature set so that it is easier to use and apply to multiple languages
+* Extensibility - Allow for developer extensions to satisfy application-specific requirements
+
+<table>
+    <thead>
+        <tr>
+            <th>Specification</th>
+            <th>Alignment to goals</th>
+            <th>Comments</th>
+        </tr>
+    </thead>
+    <tbody valign="top">
+        <tr valign="top">
+            <td valign="top">JSON schema</td>
+            <td valign="top" nowrap="nowrap">
+                <div>❌ Succinct</div>
+                <div>❌ WebAssembly-first</div>
+                <div>✅ Polyglot</div>
+                <div>✅ Simplicity</div>
+                <div>✅ Extensibility</div>
+            </td>
+            <td valign="top">
+                <ul>
+                    <li>Since JSON schema is written in JSON and not a DSL, it can be verbose.</li>
+                    <li>JSON only supports <code>number</code> instead of full set of Wasm numeric types.
+                <code>bytes</code> need to be Base 64 encoded strings.</li>
+                    <li>Not available TinyGo has <a href="https://github.com/tinygo-org/tinygo/pull/1741">initial JSON support coming</a>.
+                AssemblyScript has <a href="https://www.npmjs.com/package/assemblyscript-json">assemblyscript-json</a>.</li>
+                    <li>While extensible, it does not feel natural and many validators will return errors for unknown fields.</li>
+                </ul>
+            </td>
+        </tr>
+        <tr valign="top">
+            <td valign="top">Protocol Buffers / gRPC</td>
+            <td valign="top" nowrap="nowrap">
+                <div>✅ Succinct</div>
+                <div>✅ WebAssembly-first</div>
+                <div>❌ Polyglot</div>
+                <div>✅ Simplicity</div>
+                <div>✅ Extensibility</div>
+            </td>
+            <td valign="top">
+                <ul>
+                    <li><code>.proto</code> files are succinct, supports most of the Wasm numeric fields.</li>
+                    <li>Currently, there is a lack of protoc plugin support for TinyGo and AssemblyScript.
+                    We believe this support will come in time.</li>
+                    <li>It is possible to use <code>.proto</code>s as an IDL but there will still be some subtle issues that cause friction.</li>
+                    <li><a href="https://github.com/protocolbuffers/protobuf/releases/tag/v3.15.0" target="_blank">Support for optional fields without wrappers</a> was recently added</li>
+                    <li><a href="https://developers.google.com/protocol-buffers/docs/reference/csharp/namespace/google/protobuf/well-known-types">WellKnownTypes</a> like Timestamp and Duration may not translate well to the target language. Timezones may not be available in the Wasm environment.</li>
+                    <li>Philosophical opinion: Protobuf is used to generate objects intended for serialization, but are not always ideal
+                    to use in your business logic. Developers often let Protobuf objects leak into their business logic.</li>
+                    <li>We would like to support Protobuf as a format in the future and this is an important distinction to consider. At the very least, WIDL can be used to produce the Protobuf format that complies with your WebAssembly interface.</li>
+                </ul>
+            </td>
+        </tr>
+        <tr valign="top">
+            <td valign="top">FlatBuffers / Cap'n Proto</td>
+            <td valign="top" nowrap="nowrap">
+                <div>✅ Succinct</div>
+                <div>✅ WebAssembly-first</div>
+                <div>❌ Polyglot</div>
+                <div>❌ Simplicity</div>
+                <div>✅ Extensibility</div>
+            </td>
+            <td valign="top">
+                <ul>
+                    <li><a href="https://github.com/google/flatbuffers/pull/6408">A PR is open for AssemblyScript support in FlatBuffers</a> but still does not support Wasm-enabled languages at this time.</li>
+                    <li>Not as simple to interact with as plain data classes/structures. Accessor methods must be used.</li>
+                    <li>Lots of features that can make code generation cumbersome.</li>
+                    <li>In time could be a good option in addition to MessagePack.</li>
+                </ul>
+            </td>
+        </tr>
+    </tbody>
+</table>
 
 It's important to note that the IDLs/schemas are usually associated with the serialization format. In some cases the IDL is viable but the format is to cumbersome to implement in all WebAssembly-supported languages or are primarily solving for compaction which is not as much of a concern in WebAssembly. The primary objective in Wasm is to copy data from one module to the host or another module as efficiently as possible.
 
