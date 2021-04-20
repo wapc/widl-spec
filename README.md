@@ -291,7 +291,7 @@ Our goal was not to create "yet another IDL". In our WebAssembly journey, we con
                     <li>Since JSON schema is written in JSON and not a DSL, it can be verbose.</li>
                     <li>JSON only supports <code>number</code> instead of full set of Wasm numeric types.
                 <code>bytes</code> need to be Base 64 encoded strings.</li>
-                    <li>Not available TinyGo has <a href="https://github.com/tinygo-org/tinygo/pull/1741">initial JSON support coming</a>.
+                    <li>Not yet available in all languages. TinyGo has <a href="https://github.com/tinygo-org/tinygo/pull/1741">initial JSON support coming</a>.
                 AssemblyScript has <a href="https://www.npmjs.com/package/assemblyscript-json">assemblyscript-json</a>.</li>
                     <li>While extensible, it does not feel natural and many validators will return errors for unknown fields.</li>
                 </ul>
