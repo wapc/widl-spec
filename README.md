@@ -1,5 +1,7 @@
 # WebAssembly Interface Definition Language (WIDL) Specification
 
+The WIDL project has been extracted out of waPC and can now be found at [github.com/apexlang](https://github.com/apexlang)
+
 ## What is WIDL?
 
 WIDL is an [interface definition language](https://en.wikipedia.org/wiki/Interface_description_language) for describing [waPC](https://github.com/wapc) modules. WIDL is also used by code generation tools to create binding code for any programming language supported by waPC. waPC and WIDL aim to streamline the bidirectional communication between a host program (custom application or browser) and one or more guest WebAssembly modules. The end result is a true polyglot ecosystem where several WebAssembly modules are dynamically loaded and communicate with each other using a simple programming model.
